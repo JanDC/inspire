@@ -7,15 +7,15 @@
             <v-select
                     :items="alphabet"
                     box
-                    @change="selectAdjective"
+                    v-model="adjective"
                     label="Select adjective"
-            ></v-select>
+            />
             <v-select
                     :items="alphabet"
                     box
-                    @change="selectSubject"
+                    v-model="subject"
                     label="Select subject"
-            ></v-select>
+            />
 
             <v-btn @click="inspire" color="info">
                 Inspire me
@@ -26,7 +26,7 @@
             </v-toolbar>
             <v-list>
                 <template v-for="item in items">
-                    <v-list-tile :key="index">
+                    <v-list-tile :key="item">
                         <v-list-tile-title>{{item.adjectiveWord}} {{item.subjectWord}}</v-list-tile-title>
                     </v-list-tile>
                 </template>
@@ -41,8 +41,8 @@
 
     export default {
         data: () => ({
-            adjective: "",
-            subject: "",
+            adjective: "i",
+            subject: "o",
             items: [],
             dictionary: [],
         }),
@@ -55,12 +55,6 @@
             }
         },
         methods: {
-            selectAdjective(adjective) {
-                this.adjective = adjective;
-            },
-            selectSubject(subject) {
-                this.subject = subject;
-            },
             inspire() {
                 if (this.dictionary.length === 0) {
                     this.loadDictionary();
