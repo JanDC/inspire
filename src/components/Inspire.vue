@@ -22,16 +22,8 @@
             </v-btn>
 
             <v-toolbar>
-                <v-spacer>Your inspirations</v-spacer>
+                <v-spacer>Your inspiration: {{this.adjectiveWord}} {{this.subjectWord}}</v-spacer>
             </v-toolbar>
-            <v-list>
-                <template v-for="item in items">
-                    <v-list-tile :key="item">
-                        <v-list-tile-title>{{item.adjectiveWord}} {{item.subjectWord}}</v-list-tile-title>
-                    </v-list-tile>
-                </template>
-            </v-list>
-
         </v-layout>
     </v-container>
 </template>
@@ -39,64 +31,68 @@
 <script>
     const axios = require('axios');
 
+    const minimongo = require("minimongo");
+
+    const IndexedDb = minimongo.IndexedDb;
+
     export default {
         data: () => ({
             adjective: "i",
             subject: "o",
+            adjectiveWord: "I",
+            subjectWord: "O",
             items: [],
-            dictionary: [],
+            db: null,
         }),
         computed: {
             alphabet: () => {
                 return 'abcdefghijklmnopqrstuvwxyz'.split('');
             },
-            isFilterable: () => {
-                return true;
-            }
+        },
+        mounted() {
+            this.db = new IndexedDb({namespace: "dictionary"}, () => {
+                // Add a collection to the database
+                this.db.addCollection("dictionary", () => {
+                    this.loadDictionary().then((dictionary) => {
+                        this.db.dictionary.seed(dictionary);
+                    });
+                });
+            }, function () {
+                alert("some error!");
+            });
         },
         methods: {
             inspire() {
-                if (this.dictionary.length === 0) {
-                    this.loadDictionary();
-                }
+                this.chooseWordFromDictionary(this.adjective, (word) => {
+                    this.adjectiveWord = word
+                });
+                this.chooseWordFromDictionary(this.subject, (word) => {
+                    this.subjectWord = word
+                });
 
-                if (!this.isFilterable) {
-                    // explain why
-                    return;
-                }
-
-                const adjectiveWord = this.chooseWordFromDictionary(this.adjective);
-                const subjectWord = this.chooseWordFromDictionary(this.subject);
-
-                if (adjectiveWord && subjectWord) {
-                    this.items.unshift({adjectiveWord: adjectiveWord, subjectWord: subjectWord})
-                }
             },
-            chooseWordFromDictionary(firstLetter) {
-                const eligibleWords = this.dictionary.filter((word) => {
-
-                    if (word === undefined || word.length === 0) {
-                        return false;
+            chooseWordFromDictionary(firstLetter, callback) {
+                this.db.dictionary.find({first: firstLetter}, {
+                    limit: 100,
+                    aggregate: [{$sample: {size: 1}}]
+                }).fetch((eligibleWords) => {
+                        callback(eligibleWords[0]._id);
                     }
+                );
+            },
+            async loadDictionary() {
+                // Make a request for a user with a given ID
+                const response = await axios.get('https://raw.githubusercontent.com/wooorm/dictionaries/master/dictionaries/en-US/index.dic');
 
-                    return word[0].toUpperCase() === firstLetter.toUpperCase();
+                let rows = response.data.split('\n');
+
+                return rows.map((row) => {
+                    const word = row.split('/')[0].toLowerCase();
+
+                    return {first: word[0], _id: word}
                 });
 
 
-                const chosenWorkIndex = Math.floor(Math.random() * Math.floor(eligibleWords.length));
-
-                return eligibleWords[chosenWorkIndex];
-            },
-            loadDictionary() {
-                // Make a request for a user with a given ID
-                axios.get('https://raw.githubusercontent.com/wooorm/dictionaries/master/dictionaries/en-US/index.dic').then((response) => {
-
-                    let rows = response.data.split('\n');
-
-                    this.dictionary = rows.map((row) => {
-                        return row.split('/')[0];
-                    });
-                }).catch();
             }
         }
     }
